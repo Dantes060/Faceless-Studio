@@ -1,0 +1,4 @@
+# Normalize text to LF in the repo (the Docker/Linux host needs LF), while
+# keeping CRLF in your Windows working tree.
+* text=auto eol=lf
+*.png -text
