@@ -76,6 +76,37 @@ locally so nothing depends on a provider URL surviving.
 Every adapter is ~40 lines and sits behind an interface in `src/lib/providers/types.ts`, so adding
 a vendor means writing one class and one line in `providers/index.ts`.
 
+### Narration: OpenAI or self-hosted VoiceStudio
+
+Narration is one adapter, because OpenAI and [VoiceStudio](https://github.com/debpalash/VoiceStudio)
+share the same `POST /v1/audio/speech` contract. Switch backends with one env var:
+
+```bash
+TTS_PROVIDER=voicestudio
+VOICESTUDIO_URL=http://127.0.0.1:3900
+VOICESTUDIO_API_KEY=<the OMNIVOICE_API_KEY the service was started with>
+VOICESTUDIO_MODEL=omnivoice      # or voxcpm2 / cosyvoice / kittentts
+VOICESTUDIO_VOICE=default        # or a voice profile id/name
+```
+
+VoiceStudio is a full self-hosted service, not a library: it needs its own container, ~2.4 GB of
+model weights on first run, and CPU or GPU for inference. `docker-compose.yml` wires both services
+together for a VPS:
+
+```bash
+export APP_SECRET="$(openssl rand -hex 32)"
+export OMNIVOICE_API_KEY="$(openssl rand -hex 32)"
+docker compose up -d --build
+```
+
+Notes:
+
+- Long narration is chunked at sentence boundaries (both providers cap `input` at 4096 chars), and
+  the WAV chunks are re-stitched under a single valid header.
+- VoiceStudio is AGPL-3.0. It runs as a separate service and is only reached over its HTTP API.
+- On CPU, synthesis is slower than real time — fine for batch renders, not for live preview.
+- Leaving `TTS_PROVIDER` unset keeps OpenAI behaviour; VoiceStudio is strictly opt-in.
+
 ---
 
 ## How it works

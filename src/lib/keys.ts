@@ -1,7 +1,17 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { DATA_DIR, FFMPEG_PATH, IMAGE, KLING, LLM, PROVIDER_MODE, TTS } from "./config";
+import {
+  DATA_DIR,
+  FFMPEG_PATH,
+  IMAGE,
+  KLING,
+  LLM,
+  PROVIDER_MODE,
+  TTS,
+  TTS_PROVIDER,
+  VOICESTUDIO,
+} from "./config";
 import { getDb } from "./db";
 
 /**
@@ -158,7 +168,9 @@ export function isLiveFor(keys: ResolvedKeys, kind: "llm" | "image" | "video" | 
     case "video":
       return Boolean(keys.klingAccess && keys.klingSecret);
     case "tts":
-      return Boolean(keys.openaiKey);
+      if (TTS_PROVIDER === "voicestudio") return Boolean(VOICESTUDIO.url);
+      if (TTS_PROVIDER === "custom") return Boolean(TTS.baseUrl);
+      return Boolean(keys.openaiKey || TTS.apiKey);
   }
 }
 
@@ -172,7 +184,10 @@ export function providerStatus(keys: ResolvedKeys) {
     },
     image: { live: isLiveFor(keys, "image"), model: IMAGE.model },
     video: { live: isLiveFor(keys, "video"), model: KLING.model },
-    tts: { live: isLiveFor(keys, "tts"), model: TTS.model },
+    tts: {
+      live: isLiveFor(keys, "tts"),
+      model: TTS_PROVIDER === "voicestudio" ? `voicestudio:${VOICESTUDIO.model}` : TTS.model,
+    },
     ffmpeg: Boolean(FFMPEG_PATH) || "path",
   };
 }

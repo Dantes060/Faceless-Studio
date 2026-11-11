@@ -1,0 +1,57 @@
+# Faceless Studio + VoiceStudio (self-hosted narration).
+#
+#   export APP_SECRET="$(openssl rand -hex 32)"
+#   export OMNIVOICE_API_KEY="$(openssl rand -hex 32)"
+#   docker compose up -d --build
+#
+# The app is published on :3000. VoiceStudio is NOT published to the host —
+# only the app talks to it over the compose network on :3900.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      APP_SECRET: ${APP_SECRET:?set APP_SECRET (e.g. openssl rand -hex 32)}
+      TTS_PROVIDER: ${TTS_PROVIDER:-voicestudio}
+      VOICESTUDIO_URL: http://voicestudio:3900
+      VOICESTUDIO_API_KEY: ${OMNIVOICE_API_KEY:?set OMNIVOICE_API_KEY}
+      VOICESTUDIO_MODEL: ${VOICESTUDIO_MODEL:-omnivoice}
+      VOICESTUDIO_VOICE: ${VOICESTUDIO_VOICE:-default}
+      # Provider keys can also be set per-account in the app's Settings page.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      KLING_ACCESS_KEY: ${KLING_ACCESS_KEY:-}
+      KLING_SECRET_KEY: ${KLING_SECRET_KEY:-}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      voicestudio:
+        condition: service_healthy
+
+  voicestudio:
+    # amd64 only; on ARM add: platform: linux/amd64 (slow) or use the
+    # :stable-cuda-arm64 tag on an arm64 NVIDIA host.
+    image: ghcr.io/debpalash/voicestudio:stable
+    restart: unless-stopped
+    environment:
+      OMNIVOICE_API_KEY: ${OMNIVOICE_API_KEY:?set OMNIVOICE_API_KEY}
+      OMNIVOICE_DATA_DIR: /app/omnivoice_data
+      OMNIVOICE_SERVER_MODE: "1"
+      # Keep analytics off; we only use the HTTP API.
+      OMNIVOICE_ANALYTICS_DISABLED: "1"
+    volumes:
+      # Holds the engine models (~2.4 GB on first run) + voice profiles.
+      - voicestudio-data:/app/omnivoice_data
+    # TTS inference is CPU/GPU heavy: give it headroom and time to warm up.
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3900/health', timeout=5).status==200 else 1)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 180s
+
+volumes:
+  voicestudio-data:

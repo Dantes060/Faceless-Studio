@@ -47,10 +47,34 @@ export const KLING = {
   mode: (env("KLING_MODE") ?? "std") as "std" | "pro",
 };
 
+export type TtsProviderName = "openai" | "voicestudio" | "custom" | "mock";
+
+/**
+ * Narration backend. "openai" and "voicestudio" both speak the OpenAI
+ * /v1/audio/speech protocol, so one adapter covers both — only the base URL,
+ * key and model name change.
+ */
+export const TTS_PROVIDER: TtsProviderName =
+  (env("TTS_PROVIDER") as TtsProviderName | undefined) ?? "openai";
+
 export const TTS = {
+  provider: TTS_PROVIDER,
   openaiKey: env("OPENAI_API_KEY"),
+  /** Any OpenAI-compatible TTS base URL (defaults to OpenAI). */
+  baseUrl: env("TTS_BASE_URL") ?? LLM.openaiBaseUrl,
+  apiKey: env("TTS_API_KEY") ?? env("OPENAI_API_KEY"),
   model: env("TTS_MODEL") ?? "gpt-4o-mini-tts",
   voice: env("TTS_VOICE") ?? "alloy",
+};
+
+/** Self-hosted VoiceStudio (https://github.com/debpalash/VoiceStudio). */
+export const VOICESTUDIO = {
+  url: env("VOICESTUDIO_URL") ?? "http://127.0.0.1:3900",
+  apiKey: env("VOICESTUDIO_API_KEY"),
+  /** Engine/model id: omnivoice (default), voxcpm2, cosyvoice, kittentts, … */
+  model: env("VOICESTUDIO_MODEL") ?? "omnivoice",
+  /** Voice profile id, profile name, or an OpenAI voice alias. */
+  voice: env("VOICESTUDIO_VOICE") ?? "default",
 };
 
 export const FFMPEG_PATH = env("FFMPEG_PATH");
